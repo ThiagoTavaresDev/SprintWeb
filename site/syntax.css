@@ -1,0 +1,70 @@
+.syntax-keyword { color: #dbb4ff; }
+.syntax-literal, .syntax-number { color: #ffc693; }
+.syntax-string, .syntax-added { color: #b4e6b9; }
+.syntax-property, .syntax-variable { color: #92d9ed; }
+.syntax-type, .syntax-function { color: #ffd68a; }
+.syntax-comment { color: #aca3bc; }
+.syntax-operator, .syntax-header { color: #a9c8ff; }
+.syntax-punctuation { color: #d2c6e3; }
+.syntax-url { color: #a5e6dd; }
+.syntax-removed { color: #ffacbf; }
+
+.syntax-editor {
+  position: relative;
+  min-width: 0;
+  border-radius: 0 0 8px 8px;
+  background: #211c31;
+}
+
+.syntax-editor .editor, .syntax-editor .syntax-mirror {
+  font: 12px/1.65 var(--mono);
+  font-variant-ligatures: none;
+  letter-spacing: normal;
+  word-spacing: normal;
+  tab-size: 2;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  padding: 11px;
+}
+
+.syntax-editor .editor {
+  position: relative;
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: #f0e8ff;
+}
+
+.syntax-editor .editor::selection {
+  color: transparent;
+  background: #8561d380;
+}
+
+.syntax-editor .syntax-mirror {
+  position: absolute;
+  overflow: hidden;
+  margin: 0;
+  border: 0;
+  color: #f0e8ff;
+  pointer-events: none;
+}
+
+.syntax-no-wrap .editor, .syntax-no-wrap .syntax-mirror {
+  white-space: pre;
+  overflow-wrap: normal;
+}
+
+@media (forced-colors: active) {
+  .syntax-editor .syntax-mirror { display: none; }
+  .syntax-editor .editor {
+    background: Canvas;
+    color: CanvasText;
+    -webkit-text-fill-color: CanvasText;
+    caret-color: CanvasText;
+  }
+  .syntax-editor .editor::selection {
+    color: HighlightText;
+    background: Highlight;
+  }
+  pre code[data-language] span { color: inherit; }
+}

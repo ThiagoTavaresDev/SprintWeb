@@ -1,0 +1,89 @@
+{
+  "info": {
+    "name": "Sprint Web · Portal de Pedidos",
+    "description": "Pratique GET, POST e PATCH com a API ASP.NET Core local em modo referência. Rode a consulta com ETag antes do PATCH. Reenvie o mesmo PATCH para observar 412.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:5075" },
+    { "key": "pedidoId", "value": "101" },
+    { "key": "etag", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Listar pendentes",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/pedidos?status=pendente&pagina=1&limite=10",
+        "description": "O esperado é 200 e itens com status pendente."
+      }
+    },
+    {
+      "name": "Criar pedido",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/pedidos",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cliente\": \"Marina\",\n  \"cep\": \"01001000\",\n  \"valorCentavos\": 15990\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "O esperado é 201 com Location e ETag."
+      }
+    },
+    {
+      "name": "Provocar erro de validação",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/pedidos",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"cliente\": \"Marina\",\n  \"cep\": \"01001\",\n  \"valorCentavos\": 15990\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "O esperado é 422 com errors.cep."
+      }
+    },
+    {
+      "name": "Consultar pedido e guardar ETag",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/pedidos/{{pedidoId}}",
+        "description": "O script guarda a ETag da resposta para usar em If-Match no PATCH."
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "const etag = pm.response.headers.get('ETag');",
+            "if (pm.response.code === 200 && etag) {",
+            "    pm.collectionVariables.set('etag', etag);",
+            "} else {",
+            "    pm.collectionVariables.unset('etag');",
+            "}"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "Alterar status com If-Match",
+      "request": {
+        "method": "PATCH",
+        "url": "{{baseUrl}}/api/pedidos/{{pedidoId}}/status",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "If-Match", "value": "{{etag}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"enviado\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "description": "Rode o GET do pedido primeiro. O PATCH bem-sucedido retorna 200 e uma nova ETag. Envie o mesmo PATCH mais uma vez para ver 412."
+      }
+    }
+  ]
+}

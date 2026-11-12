@@ -1,0 +1,108 @@
+<header class="site-header">
+  <div class="shell header-inner">
+    <span class="brand-mark" aria-hidden="true">SW</span>
+    <div><strong>Sprint Web</strong><span class="header-divider" aria-hidden="true">/</span><span>Laboratório Angular</span></div>
+  </div>
+</header>
+
+<main class="shell">
+  <section class="hero" aria-labelledby="titulo">
+    <p>Portal de Pedidos</p>
+    <h1 id="titulo">Da resposta HTTP à tela.</h1>
+    <p>Filtre pedidos, crie um registro e atualize o status com o ETag devolvido pela API.</p>
+  </section>
+
+  <div class="layout">
+    <div class="column">
+      <section class="panel" aria-labelledby="lista-titulo">
+        <div class="panel-title">
+          <div><h2 id="lista-titulo">Pedidos</h2><p>Consulte e abra o detalhe de um pedido.</p></div>
+          <div class="field filter"><label for="filtro">Filtrar por status</label>
+            <select #filtroStatus id="filtro" (change)="filtrar(filtroStatus.value)">
+              <option value="" [selected]="!filtro()">Todos</option>
+              @for (status of statusDisponiveis; track status) { <option [value]="status" [selected]="status === filtro()">{{ status }}</option> }
+            </select>
+          </div>
+        </div>
+
+        @if (lista(); as estado) {
+          @switch (estado.kind) {
+            @case ('loading') { <p class="message" role="status">Carregando pedidos…</p> }
+            @case ('empty') {
+              <p class="message" role="status">Nenhum pedido encontrado para este filtro.</p>
+              @if (pagina() > 1) { <button class="secondary" type="button" (click)="carregarLista(1)">Voltar à primeira página</button> }
+            }
+            @case ('error') {
+              <p class="message error" role="alert">{{ estado.message }}</p>
+              <button class="secondary" type="button" (click)="carregarLista()">Tentar novamente</button>
+            }
+            @case ('ready') {
+              <div class="table-frame">
+                <table aria-label="Pedidos retornados pela API">
+                  <thead><tr><th scope="col">Pedido</th><th scope="col">Cliente</th><th scope="col">Status</th><th scope="col">Valor</th><th scope="col">Ação</th></tr></thead>
+                  <tbody>
+                    @for (pedido of estado.pedidos; track pedido.id) {
+                      <tr>
+                        <td class="order-id">#{{ pedido.id }}</td><td>{{ pedido.cliente }}</td><td><span class="status" [attr.data-status]="pedido.status">{{ pedido.status }}</span></td><td>{{ formatarValor(pedido.valorCentavos) }}</td>
+                        <td><button type="button" class="secondary compact" [attr.aria-label]="'Detalhes do pedido ' + pedido.id" [disabled]="salvandoStatus()" (click)="abrirDetalhe(pedido.id)">Detalhes</button></td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <div class="pagination">
+                <p>Página {{ estado.pagina }} · {{ estado.total }} pedido(s)</p>
+                <div><button type="button" class="secondary compact" [disabled]="estado.pagina <= 1" (click)="carregarLista(estado.pagina - 1)">Anterior</button>
+                <button type="button" class="secondary compact" [disabled]="estado.pagina * estado.limite >= estado.total" (click)="carregarLista(estado.pagina + 1)">Próxima</button></div>
+              </div>
+            }
+          }
+        }
+      </section>
+
+      <section class="panel" aria-labelledby="detalhe-titulo">
+        <h2 id="detalhe-titulo">Detalhe do pedido</h2>
+        @if (carregandoDetalhe()) { <p class="message" role="status">Carregando detalhe…</p> }
+        @else if (erroDetalhe()) { <p class="message error" role="alert">{{ erroDetalhe() }}</p> }
+        @else if (detalhe(); as atual) {
+          <p class="order-summary">#{{ atual.pedido.id }} · {{ atual.pedido.cliente }} <span class="status" [attr.data-status]="atual.pedido.status">{{ atual.pedido.status }}</span></p>
+          <dl class="metadata"><div><dt>CEP</dt><dd>{{ atual.pedido.cep }}</dd></div><div><dt>Versão</dt><dd>{{ atual.pedido.versao }}</dd></div><div><dt>ETag</dt><dd><code>{{ atual.etag ?? 'ausente' }}</code></dd></div></dl>
+          <div class="update-row">
+            <div class="field"><label for="novo-status">Novo status</label>
+              <select #statusAtual id="novo-status" [disabled]="salvandoStatus()" (change)="escolherStatus(statusAtual.value)">
+                @for (status of statusDisponiveis; track status) { <option [value]="status" [selected]="status === novoStatus()">{{ status }}</option> }
+              </select>
+            </div>
+            <button type="button" [disabled]="!atual.etag || salvandoStatus() || atualizacao()?.kind === 'conflict'" (click)="salvarStatus()">{{ salvandoStatus() ? 'Salvando…' : 'Salvar status' }}</button>
+          </div>
+          @if (!atual.etag) { <p class="message error" role="alert">A API precisa devolver o cabeçalho ETag para liberar a alteração.</p> }
+          @if (atualizacao(); as feedback) {
+            <p class="message" [class.error]="feedback.kind !== 'success'" role="status">{{ feedback.message }}</p>
+            @if (feedback.kind === 'conflict') { <button type="button" class="secondary" (click)="abrirDetalhe(atual.pedido.id, true)">Recarregar versão</button> }
+          }
+        } @else { <p class="muted">Selecione Detalhes na tabela para abrir um pedido.</p> }
+      </section>
+    </div>
+
+    <section class="panel" aria-labelledby="criar-titulo">
+      <h2 id="criar-titulo">Novo pedido</h2>
+      <p class="muted">A API valida os campos antes de salvar.</p>
+      <form [formGroup]="form" (ngSubmit)="criarPedido()">
+        <div class="field"><label for="cliente">Cliente</label>
+          <input id="cliente" formControlName="cliente" autocomplete="off" required aria-describedby="erro-cliente" [attr.aria-invalid]="!!mensagemCampo('cliente')" (input)="limparErro('cliente')">
+          <span class="field-error" id="erro-cliente">{{ mensagemCampo('cliente') }}</span>
+        </div>
+        <div class="field"><label for="cep">CEP</label>
+          <input id="cep" formControlName="cep" inputmode="numeric" autocomplete="off" required aria-describedby="erro-cep" [attr.aria-invalid]="!!mensagemCampo('cep')" (input)="limparErro('cep')">
+          <span class="field-error" id="erro-cep">{{ mensagemCampo('cep') }}</span>
+        </div>
+        <div class="field"><label for="valor">Valor em centavos</label>
+          <input id="valor" formControlName="valorCentavos" type="number" min="1" step="1" required aria-describedby="erro-valor" [attr.aria-invalid]="!!mensagemCampo('valorCentavos')" (input)="limparErro('valorCentavos')">
+          <span class="field-error" id="erro-valor">{{ mensagemCampo('valorCentavos') }}</span>
+        </div>
+        <button type="submit" [disabled]="criando()">{{ criando() ? 'Criando…' : 'Criar pedido' }}</button>
+      </form>
+      @if (criacao(); as feedback) { <p class="message" [class.error]="feedback.kind === 'error'" role="status">{{ feedback.message }}</p> }
+    </section>
+  </div>
+</main>

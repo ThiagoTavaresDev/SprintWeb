@@ -1,0 +1,53 @@
+@base = http://127.0.0.1:5075
+
+### NET-301 · filtre os pendentes e pagine
+GET {{base}}/api/pedidos?status=pendente&pagina=1&limite=1
+
+### NET-302 · leia a ETag na resposta
+GET {{base}}/api/pedidos/101
+
+### NET-303 · confira os erros em errors.cep e errors.valorCentavos
+POST {{base}}/api/pedidos
+Content-Type: application/json
+
+{
+  "cliente": "Joana",
+  "cep": "123",
+  "valorCentavos": 0
+}
+
+### NET-303 · crie e confira Location e ETag
+POST {{base}}/api/pedidos
+Content-Type: application/json
+
+{
+  "cliente": "Joana",
+  "cep": "01311000",
+  "valorCentavos": 23990
+}
+
+### NET-304 · use a ETag atual do GET de detalhe
+PATCH {{base}}/api/pedidos/101/status
+Content-Type: application/json
+If-Match: "1"
+
+{
+  "status": "enviado"
+}
+
+### NET-304 · repita com a mesma ETag e observe o 412
+PATCH {{base}}/api/pedidos/101/status
+Content-Type: application/json
+If-Match: "1"
+
+{
+  "status": "cancelado"
+}
+
+### NET-304 · sem condição, observe o 428
+PATCH {{base}}/api/pedidos/101/status
+Content-Type: application/json
+
+{
+  "status": "cancelado"
+}
