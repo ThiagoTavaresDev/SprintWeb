@@ -1,7 +1,8 @@
 'use strict';
 
 const stackMissions = [...window.fullstackExisting,...window.fullstackProduct,...window.fullstackNew];
-const stackById = Object.fromEntries(stackMissions.map(mission => [mission.id,mission]));
+const allStackMissions = [...stackMissions,...window.hemoFullstackMissions];
+const stackById = Object.fromEntries(allStackMissions.map(mission => [mission.id,mission]));
 const stackBySource = new Map(stackMissions.filter(mission => mission.sourceId).map(mission => [mission.sourceId,mission]));
 const stackSteps = [
   {label:'Chamado', icon:'jira', title:'Alinhe o chamado', description:'Converta o relato em critérios verificáveis e assuma o ticket no Jira.'},
@@ -38,8 +39,8 @@ function stackValidated(saved,index) {
   return index === 3 && !saved.done[4] ? saved.checks.every(Boolean) : saved.done[index];
 }
 
-function stackStats() {
-  return stackMissions.reduce((total,mission) => {
+function stackStats(list = allStackMissions) {
+  return list.reduce((total,mission) => {
     const saved = stackState(mission);
     const {done,reviews} = saved;
     total.completed += Number(done[4]);
@@ -86,7 +87,7 @@ function recommendedStackMission() {
 }
 
 function stackHome() {
-  const stats = stackStats();
+  const stats = stackStats(stackMissions);
   const next = recommendedStackMission();
   const themes = [...new Set(stackMissions.map(mission => mission.category))].map(category => [category,category]);
   return `<section class="stack-intro" aria-labelledby="stack-title">
@@ -129,7 +130,8 @@ function stackNavigation(mission,step) {
 }
 
 function stackPage(mission,step) {
-  return `<a class="route-back" href="#fullstack">${icon('back')} Trilha Full Stack</a>
+  const hemo = isHemoMission(mission);
+  return `<a class="route-back" href="${hemo ? '#hemoterapia' : '#fullstack'}">${icon('back')} ${hemo ? 'Hemoterapia' : 'Trilha Full Stack'}</a>
     <div class="page-heading mission-heading"><p class="kicker">${mission.id} · ${escape(mission.category)}</p><h1>${escape(mission.title)}</h1><p>${escape(mission.description)}</p>
     <div class="skills">${levelBadge(mission)}${mission.skills.map(skill => `<span class="skill">${escape(skill)}</span>`).join('')}
     ${mission.sourceId ? `<a class="skill stack-source" href="${missionHref(mission.sourceId,0)}">Ver chamado ${mission.sourceId} ${icon('external')}</a>` : ''}</div></div>
@@ -466,14 +468,16 @@ function stackDelivery(mission) {
   const saved = stackState(mission);
   const context = stackContext(mission);
   const editingPr = !saved.pr || saved.prRevision !== saved.revision || saved.prDraft !== saved.pr || context.editPr;
-  const next = stackMissions.slice(stackMissions.indexOf(mission) + 1).find(item => !stackState(item).done[4]);
+  const hemo = isHemoMission(mission);
+  const list = hemo ? hemoStackMissions : stackMissions;
+  const next = list.slice(list.indexOf(mission) + 1).find(item => !stackState(item).done[4]);
   const points = stackRewards.reduce((total,xp) => total + xp,0);
   return `<div class="workspace-grid">
     <div class="stack">
       <section class="panel workspace-panel">
         <h2>${stackSteps[4].title}</h2><p>${stackSteps[4].description}</p>
         ${saved.done[4] ? `<div class="completion" id="stack-complete" tabindex="-1">${icon('trophy')}<div><strong>Missão full stack concluída</strong><p>${points} XP no total. Revisões agendadas em 1, 3 e 7 dias.</p></div></div>
-          <div class="actions"><a class="button" href="${next ? stackHref(next) : '#fullstack'}">${next ? 'Próxima missão full stack' : 'Voltar à trilha'} ${icon('arrow')}</a><a class="button secondary" href="#revisao">Ver revisões</a></div>` : ''}
+          <div class="actions"><a class="button" href="${next ? stackHref(next) : hemo ? '#hemoterapia' : '#fullstack'}">${next ? 'Próxima missão full stack' : 'Voltar à trilha'} ${icon('arrow')}</a><a class="button secondary" href="#revisao">Ver revisões</a></div>` : ''}
       </section>
       <section class="panel workspace-panel">
         <h3 class="panel-title">${icon('slack')} Thread · ${escape(mission.handoff.channel)} <span class="simulation-label">Simulado</span></h3>

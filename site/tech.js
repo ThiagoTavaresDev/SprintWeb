@@ -1,7 +1,8 @@
 'use strict';
 
 const techMissions = [...window.techBackend,...window.techFrontend];
-const techById = Object.fromEntries(techMissions.map(item => [item.id,item]));
+const allTechMissions = [...techMissions,...hemoProjectMissions];
+const techById = Object.fromEntries(allTechMissions.map(item => [item.id,item]));
 const techNames = {
   csharp:'C#', aspnet:'ASP.NET Core / .NET 10', efcore:'Entity Framework Core 10',
   typescript:'TypeScript', angular:'Angular 21'
@@ -19,8 +20,8 @@ function techProgress(mission) {
   return record?.completed ? 'done' : record?.started ? 'active' : 'new';
 }
 
-function techStats() {
-  const completed = techMissions.filter(mission => techProgress(mission) === 'done').length;
+function techStats(list = allTechMissions) {
+  const completed = list.filter(mission => techProgress(mission) === 'done').length;
   return {completed,xp:completed * 40};
 }
 
@@ -33,7 +34,7 @@ function techDownload(label = 'Baixar projetos') {
 }
 
 function techHome() {
-  const count = techStats().completed;
+  const count = techStats(techMissions).completed;
   return `<section class="tech-hero">
     <div><p class="hero-label">${icon('terminal')} Laboratório local</p><h1>C# e Angular no mesmo produto.</h1>
       <p>Implemente a API do Portal de Pedidos com ASP.NET Core e EF Core. Depois, trabalhe na interface Angular que consome o mesmo contrato.</p>
@@ -69,41 +70,69 @@ function techCard(item) {
   </a>`;
 }
 
+function techLayersReady(item,record) {
+  return !item.sections || item.sections.every((_,index) => record.layers?.[index]);
+}
+
+function techLayerSection(section,index,record) {
+  return `<section class="panel workspace-panel">
+    <h2>${escape(section.title)}</h2>
+    <p class="tech-file">${icon('terminal')} <code>${escape(section.file)}</code></p>
+    <div class="stack-task">${escape(section.goal)}</div>
+    <details class="support-details"><summary>Ver trecho de referência</summary>${codeBlock(section.example.code,section.example.language)}</details>
+    <label class="tech-layer-check" for="tech-layer-${index}">
+      <input type="checkbox" id="tech-layer-${index}" data-tech-layer="${index}"${record.layers?.[index] ? ' checked' : ''}${record.completed ? ' disabled' : ''}>
+      Verifiquei no projeto local · ${escape(section.title)}
+    </label>
+  </section>`;
+}
+
 function techPage(item) {
   const record = techRecords()[item.id] ?? {};
   const quizKey = `${item.id}-tech`;
   const correct = record.completed || record.correct;
-  return `<a class="route-back" href="#tecnologias">${icon('back')} Tecnologias</a>
-    <div class="page-heading mission-heading"><p class="kicker">${item.id} · Projeto local</p><h1>${escape(item.title)}</h1><p>${escape(item.description)}</p>
+  const layersReady = techLayersReady(item,record);
+  const hemo = isHemoMission(item);
+  const returnLink = hemo ? '#hemoterapia' : '#tecnologias';
+  return `<a class="route-back" href="${returnLink}">${icon('back')} ${hemo ? 'Hemoterapia' : 'Tecnologias'}</a>
+    <div class="page-heading mission-heading"><p class="kicker">${item.id} · ${item.sections ? 'Full Stack local' : 'Projeto local'}</p><h1>${escape(item.title)}</h1><p>${escape(item.description)}</p>
       <div class="skills">${levelBadge(item)}${item.technologies.map(id => `<span class="skill">${escape(techNames[id])}</span>`).join('')}</div></div>
     ${missionGuidePanel(item,0)}
     <div class="workspace-grid tech-workspace">
       <div class="stack">
-        <section class="panel workspace-panel">
+        ${item.sections ? `
+          <section class="panel workspace-panel"><h2>Chamado no Jira</h2><p>${escape(item.delivery.ticket)}</p>
+            <h3 class="stack-subheading">Critérios de aceite</h3>
+            <ul class="criteria">${item.criteria.map(criterion => `<li>${escape(criterion)}</li>`).join('')}</ul>
+          </section>
+          ${item.sections.map((section,index) => techLayerSection(section,index,record)).join('')}` : `<section class="panel workspace-panel">
           <h2>Implemente no projeto</h2><p>Abra o arquivo indicado após extrair o ZIP. Rode a verificação no terminal.</p>
           <p class="tech-file">${icon('terminal')} <code>${escape(item.file)}</code></p>
           <div class="stack-task">${escape(item.goal)}</div>
           <h3 class="stack-subheading">Critérios de aceite</h3>
           <ul class="criteria">${item.criteria.map(criterion => `<li>${escape(criterion)}</li>`).join('')}</ul>
           <details class="support-details"><summary>Ver trecho de referência</summary>${codeBlock(item.example.code,item.example.language)}</details>
-        </section>
+        </section>`}
         <section class="panel workspace-panel">
-          <h2>Confira o que aprendeu</h2>${quiz(item.question,quizKey,correct)}
+          <h2>${item.sections ? 'Validação e entrega' : 'Confira o que aprendeu'}</h2>
+          ${item.delivery ? `<dl class="tech-delivery"><dt>Slack</dt><dd>${escape(item.delivery.slack)}</dd><dt>Pull request</dt><dd>${escape(item.delivery.pullRequest)}</dd></dl>` : ''}
+          ${quiz(item.question,quizKey,correct)}
           ${record.completed ? `<div class="completion" id="tech-complete" tabindex="-1">${icon('trophy')}<div><strong>Prática concluída · 40 XP</strong><p>Validação registrada por você.</p></div></div>
-            <pre class="artifact">${escape(record.evidence)}</pre><div class="actions"><a class="button secondary" href="#tecnologias">Voltar às tecnologias</a></div>`
-          : correct ? `<form id="tech-check-form">
-            <label for="tech-evidence" class="field-label">O que você observou ao rodar a verificação?</label>
-            <textarea id="tech-evidence" class="handoff-note" rows="3" required minlength="20" maxlength="1200" placeholder="Ex.: a segunda atualização com o ETag antigo retornou 412.">${escape(record.draft ?? '')}</textarea>
+            <pre class="artifact">${escape(record.evidence)}</pre><div class="actions"><a class="button secondary" href="${returnLink}">Voltar à trilha</a></div>`
+          : correct && layersReady ? `<form id="tech-check-form">
+            <label for="tech-evidence" class="field-label">${item.sections ? 'Que evidências você colocaria na entrega?' : 'O que você observou ao rodar a verificação?'}</label>
+            <textarea id="tech-evidence" class="handoff-note" rows="3" required minlength="20" maxlength="1200" placeholder="${item.sections ? 'Registre o resultado na API e na tela.' : 'Ex.: a segunda atualização com o ETag antigo retornou 412.'}">${escape(record.draft ?? '')}</textarea>
             <div class="actions"><button class="button" type="submit">Registrar minha validação ${icon('check')}</button></div>
-          </form>` : ''}
+          </form>` : correct ? '<p role="status">Marque as duas verificações locais para registrar a entrega.</p>' : ''}
         </section>
       </div>
       <aside class="stack">
         <section class="panel workspace-panel">
           <h3 class="panel-title">${icon('terminal')} Como verificar</h3>
+          ${item.sections ? `<p><strong>${item.sections.filter((_,index) => record.layers?.[index]).length} de ${item.sections.length} camadas verificadas</strong></p>` : ''}
           <p class="tech-verify">${escape(item.verify)}</p>
           <div class="actions">${techDownload()}<a class="button quiet" href="#como-usar">Ver o guia</a></div>
-          ${item.httpLesson ? `<details class="support-details" open><summary>Praticar o contrato HTTP</summary><p>O cliente simulado permite experimentar a requisição antes de testar seu projeto local.</p><div class="actions"><a class="button secondary" href="#cliente-http/${escape(item.httpLesson)}">Abrir Cliente HTTP ${icon('arrow')}</a></div></details>` : ''}
+          ${item.httpLesson ? `<details class="support-details" open><summary>Praticar o contrato HTTP</summary><p>O cliente simulado permite experimentar a requisição antes de testar seu projeto local.</p><div class="actions"><a class="button secondary" href="#${hemo ? 'cliente-hemoterapia' : 'cliente-http'}/${escape(item.httpLesson)}">Abrir Cliente HTTP ${icon('arrow')}</a></div></details>` : ''}
         </section>
       </aside>
     </div>`;
@@ -121,6 +150,17 @@ function techAnswer(item,index) {
 }
 
 function bindTechEvents() {
+  root.addEventListener('change',event => {
+    const item = activeRoute.tech;
+    const layer = event.target.dataset.techLayer;
+    if (!item?.sections || layer === undefined || !item.sections[layer]) return;
+    const record = techRecords()[item.id] ??= {};
+    if (record.completed) return;
+    record.started = true;
+    (record.layers ??= [])[layer] = event.target.checked;
+    save();
+    render({focus:`#tech-layer-${layer}`});
+  });
   root.addEventListener('input',event => {
     const item = activeRoute.tech;
     if (!item || event.target.id !== 'tech-evidence') return;
@@ -130,8 +170,10 @@ function bindTechEvents() {
   });
   root.addEventListener('submit',event => {
     const item = activeRoute.tech;
-    if (!item || event.target.id !== 'tech-check-form' || !techRecords()[item.id]?.correct) return;
+    if (!item || event.target.id !== 'tech-check-form') return;
     event.preventDefault();
+    const record = techRecords()[item.id];
+    if (!record?.correct || record.completed || !techLayersReady(item,record)) return;
     const field = event.target.querySelector('#tech-evidence');
     const evidence = field.value.trim();
     if (evidence.length < 20) {
@@ -139,7 +181,6 @@ function bindTechEvents() {
       field.reportValidity();
       return;
     }
-    const record = techRecords()[item.id];
     record.evidence = evidence;
     record.completed = true;
     delete record.draft;

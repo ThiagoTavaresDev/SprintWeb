@@ -1,0 +1,38 @@
+:host {
+  display: block;
+  margin-block: 2rem;
+}
+
+.oficina-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 1rem;
+}
+
+.oficina-grid article {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.oficina-acoes {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.oficina-acoes input {
+  max-width: 100%;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-block: .75rem;
+  text-align: left;
+}
+
+th, td {
+  border-bottom: 1px solid #d8e3e6;
+  padding: .35rem;
+}

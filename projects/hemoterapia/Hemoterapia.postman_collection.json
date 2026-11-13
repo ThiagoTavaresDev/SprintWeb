@@ -1,0 +1,111 @@
+{
+  "info": {
+    "name": "Sprint Web · Hemoterapia",
+    "description": "Prática com dados fictícios. Rode a API local em modo referência antes de enviar as requisições.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:5085/api/hemoterapia"
+    }
+  ],
+  "item": [
+    {
+      "name": "Filtrar o estoque por status",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": "{{baseUrl}}/componentes?status=disponivel"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('200 com dois componentes disponíveis', () => {",
+            "  pm.response.to.have.status(200);",
+            "  const body = pm.response.json();",
+            "  pm.expect(body.total).to.eql(2);",
+            "  pm.expect(body.items.map(item => item.codigo)).to.eql(['BOL-101', 'BOL-103']);",
+            "});"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "Consultar a linha do tempo e o ETag",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Accept", "value": "application/json" }],
+        "url": "{{baseUrl}}/componentes/BOL-101"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('200 com versão e histórico ordenado', () => {",
+            "  pm.response.to.have.status(200);",
+            "  pm.expect(pm.response.headers.get('ETag')).to.eql('\"1\"');",
+            "  const history = pm.response.json().linhaDoTempo;",
+            "  pm.expect(history.map(event => event.tipo)).to.eql(['registrado', 'recebido']);",
+            "});"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "Reproduzir erros por campo",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"codigoComponente\": \"BOL-999\",\n  \"descricao\": \" \"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/ocorrencias"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('422 com as duas chaves de validação', () => {",
+            "  pm.response.to.have.status(422);",
+            "  pm.expect(pm.response.json().errors).to.have.all.keys('codigoComponente', 'descricao');",
+            "});"
+          ]
+        }
+      }]
+    },
+    {
+      "name": "Criar um rascunho interno",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"codigoComponente\": \"BOL-101\",\n  \"descricao\": \"Ocorrência fictícia para testar o formulário.\"\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{baseUrl}}/ocorrencias"
+      },
+      "event": [{
+        "listen": "test",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.test('201 com rascunho e Location', () => {",
+            "  pm.response.to.have.status(201);",
+            "  const body = pm.response.json();",
+            "  pm.expect(body.status).to.eql('rascunho');",
+            "  pm.expect(pm.response.headers.get('Location')).to.eql('/api/hemoterapia/ocorrencias/' + body.id);",
+            "});"
+          ]
+        }
+      }]
+    }
+  ]
+}

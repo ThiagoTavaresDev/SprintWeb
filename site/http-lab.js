@@ -8,63 +8,96 @@ const httpLessons = [
   {id:'conflito',title:'Reproduzir um conflito',goal:'Simule uma alteração concorrente e envie o PATCH com o ETag anterior. Compare o 412 com o que ocorreu no exercício de atualização.',method:'GET',path:'/api/pedidos/102'}
 ];
 const httpById = Object.fromEntries(httpLessons.map(item => [item.id,item]));
+const httpProfiles = {
+  pedidos:{name:'Portal de Pedidos',route:'#cliente-http',storage:'http',engine:window.sprintHttp,lessons:httpLessons,byId:httpById,path:'/api/pedidos',port:'5075'},
+  hemoterapia:{name:'Hemoterapia',route:'#cliente-hemoterapia',storage:'hemoHttp',engine:window.hemoHttp,lessons:hemoHttpLessons,byId:hemoHttpById,path:'/api/hemoterapia/componentes',port:'5085'},
+  plantao:{name:'Plantão de incidentes',byId:{}}
+};
 const httpRequestTabs = [['params','Parâmetros'],['headers','Cabeçalhos'],['body','Corpo JSON']];
 const httpResponseTabs = [['body','Corpo'],['headers','Cabeçalhos']];
-const httpView = {key:null,requestTab:'params',responseTab:'body',draft:null,response:null,message:'',observed:null,stale:null};
+const httpView = {profile:'pedidos',key:null,requestTab:'params',responseTab:'body',draft:null,response:null,message:'',observed:null,stale:null};
 
-function httpState() {
-  return state.http ??= {database:window.sprintHttp.freshState(),completed:{},history:[]};
+function httpState(profile = httpView.profile) {
+  if (profile === 'plantao') {
+    const investigations = state.plantaoHttp ??= {};
+    return investigations[httpView.key] ??= {history:[]};
+  }
+  const config = httpProfiles[profile];
+  return state[config.storage] ??= {database:config.engine.freshState(),completed:{},history:[]};
 }
 
-function httpStats() {
-  const completed = httpLessons.filter(item => httpState().completed[item.id]).length;
+function httpStats(profile = 'pedidos') {
+  const completed = httpProfiles[profile].lessons.filter(item => httpState(profile).completed[item.id]).length;
   return {completed,xp:completed * 15};
 }
 
 function httpDraft(template) {
   const body = template?.body ? stackJson(template.body) : '';
-  return {method:template?.method ?? 'GET',path:template?.path ?? '/api/pedidos',params:[],headers:body ? [{name:'Content-Type',value:'application/json'}] : [],body};
+  const path = template?.path ?? httpProfiles[httpView.profile].path;
+  const headers = template?.headers?.map(header => ({...header})) ?? [];
+  if (body && !httpHeader(headers,'Content-Type')) headers.push({name:'Content-Type',value:'application/json'});
+  return {method:template?.method ?? 'GET',path,params:httpParams(path),headers,body};
 }
 
-function httpSelect(key) {
-  if (httpView.key === key) return;
-  Object.assign(httpView,{key,draft:httpDraft(httpById[key]),requestTab:httpById[key]?.body ? 'body' : 'params',
+function httpSelect(key,profile = httpView.profile) {
+  if (httpView.key === key && httpView.profile === profile) return;
+  httpView.profile = profile;
+  const config = httpProfiles[profile];
+  const lesson = profile === 'plantao' ? incidentByVariant.get(key).exercise.probes[0].request : config.byId[key];
+  Object.assign(httpView,{key,draft:httpDraft(lesson),requestTab:lesson?.body ? 'body' : lesson?.headers?.length ? 'headers' : 'params',
     responseTab:'body',response:null,message:'',observed:null,stale:null});
 }
 
-function httpPage(key) {
-  httpSelect(key);
-  const lesson = httpById[key];
-  const stats = httpStats();
+function httpPage(key,profile = 'pedidos') {
+  httpSelect(key,profile);
+  const config = httpProfiles[profile];
+  const lesson = config.byId[key];
+  const hemo = profile === 'hemoterapia';
+  const plantao = profile === 'plantao';
+  const context = plantao ? incidentByVariant.get(key) : null;
+  const evidence = plantao ? incidentState().runs[key]?.http : null;
+  const intro = plantao ? 'Compare as respostas da API com a captura da interface.'
+    : hemo ? 'Pratique estoque, rastreabilidade e ocorrências internas com dados fictícios.'
+    : 'Monte uma requisição e inspecione a resposta, como faria no Postman.';
+  const feedback = httpView.message ? `<p class="note" id="http-lesson-feedback" tabindex="-1" role="status">${escape(httpView.message)}</p>` : '';
   const {draft,response} = httpView;
-  return `<div class="page-heading"><p class="kicker">API simulada · Portal de Pedidos</p><h1>Cliente HTTP</h1><p>Monte uma requisição e inspecione a resposta, como faria no Postman. O envio roda sobre dados de exemplo neste navegador.</p></div>
+  return `${plantao ? `<a class="route-back" href="#plantao/${key}">${icon('back')} Voltar à investigação</a>` : ''}
+    <div class="page-heading"><p class="kicker">API simulada · ${config.name}</p><h1>Cliente HTTP</h1><p>${intro} O envio roda neste navegador.</p></div>
     <div class="http-layout">
       <aside class="stack">
+        ${plantao ? `<section class="panel workspace-panel http-guide">
+          <h3 class="panel-title">${icon('book')} ${escape(context.variant.label)}</h3>
+          <p><strong>${escape(context.exercise.title)}</strong></p><p>${escape(context.exercise.investigation)}</p>
+        </section>` : `
         <section class="panel workspace-panel http-collection">
-          <h2>Coleção de exercícios</h2><p class="note">${stats.completed} de ${httpLessons.length} validados</p>
-          <nav aria-label="Exercícios de requisições" class="http-lessons">${httpLessons.map(item => {
+          <h2>Coleção de exercícios</h2><p class="note">${httpStats(profile).completed} de ${config.lessons.length} validados</p>
+          <nav aria-label="Exercícios de requisições" class="http-lessons">${config.lessons.map(item => {
             const complete = httpState().completed[item.id];
-            return `<a href="#cliente-http/${item.id}"${key === item.id ? ' aria-current="page"' : ''}>${icon(complete ? 'check' : 'terminal')}${item.title}${complete ? '<span class="sr-only">, concluído</span>' : ''}</a>`;
-          }).join('')}<a href="#cliente-http/livre"${key === 'livre' ? ' aria-current="page"' : ''}>${icon('play')} Exploração livre</a></nav>
+            return `<a href="${config.route}/${item.id}"${key === item.id ? ' aria-current="page"' : ''}>${icon(complete ? 'check' : 'terminal')}${item.title}${complete ? '<span class="sr-only">, concluído</span>' : ''}</a>`;
+          }).join('')}<a href="${config.route}/livre"${key === 'livre' ? ' aria-current="page"' : ''}>${icon('play')} Exploração livre</a></nav>
         </section>
         <section class="panel workspace-panel http-guide">
           <h3 class="panel-title">${icon('book')} Como ler uma requisição</h3>
-          <details class="support-details"><summary>Método e caminho</summary><p>GET consulta dados, POST cria um pedido e PATCH altera parte de um recurso. O caminho identifica a coleção ou o recurso.</p></details>
+          <details class="support-details"><summary>Método e caminho</summary><p>GET consulta dados. ${hemo ? 'POST registra um rascunho interno de ocorrência.' : 'POST cria um pedido e PATCH altera parte de um recurso.'} O caminho identifica a coleção ou o recurso.</p></details>
           <details class="support-details"><summary>Parâmetros, cabeçalhos e JSON</summary><p>Parâmetros refinam a consulta. Cabeçalhos trazem metadados, como Content-Type e If-Match. O corpo JSON contém os dados da alteração.</p></details>
-          <details class="support-details"><summary>Status da resposta</summary><p>Leia o status antes do corpo. Por exemplo, 201 indica criação, 422 aponta uma validação e 412 indica que a precondição falhou.</p></details>
-          <details class="support-details"><summary>Repetir no Postman</summary><p>Inicie a API do ZIP em modo referência e importe a coleção incluída. Ao montar a URL no Postman, coloque <code>http://127.0.0.1:5075</code> antes do caminho. Params, Headers e Body correspondem às abas deste cliente.</p></details>
+          <details class="support-details"><summary>Status da resposta</summary><p>Leia o status antes do corpo. 201 indica criação, 422 aponta validação e ${hemo ? '404 informa que o recurso não foi localizado.' : '412 indica que a precondição falhou.'}</p></details>
+          <details class="support-details"><summary>Repetir no Postman</summary><p>Inicie a API do ZIP em modo referência e use ${hemo ? 'os exemplos em hemoterapia/api' : 'a coleção do Portal de Pedidos'}. Ao montar a URL no Postman, coloque <code>http://127.0.0.1:${config.port}</code> antes do caminho. Params, Headers e Body correspondem às abas deste cliente.</p></details>
           <div class="support-details">${link('https://learning.postman.com/docs/use/send-requests/requests/','Documentação do Postman')}</div>
-        </section>
+        </section>`}
       </aside>
       <div class="stack http-main">
-        ${lesson ? `<section class="panel workspace-panel http-challenge">
+        ${plantao ? `<section class="panel workspace-panel http-challenge">
+          <h2>Registre as evidências</h2><p>Prepare cada requisição, confira seus dados e envie para registrar a resposta no chamado.</p>
+          <div class="actions">${context.exercise.probes.map((probe,index) => `<button class="button secondary" type="button" data-http-action="incident-probe" data-probe-index="${index}">${escape(probe.label)}${evidence && Object.hasOwn(evidence,probe.id) ? `${icon('check')}<span class="sr-only"> · evidência registrada</span>` : ''}</button>`).join('')}</div>
+          ${feedback}
+        </section>` : lesson ? `<section class="panel workspace-panel http-challenge">
           <h2>${lesson.title}</h2><p>${lesson.goal}</p>
           <div class="actions">
             ${key === 'etag' && httpView.observed ? '<button class="button secondary" type="button" data-http-action="patch">Preparar PATCH</button>' : ''}
             ${key === 'conflito' ? '<button class="button secondary" type="button" data-http-action="conflict">Simular alteração concorrente</button>' : ''}
             <button class="button quiet" type="button" data-http-action="reset-request">Restaurar requisição inicial</button>
           </div>
-          ${httpView.message ? `<p class="note" id="http-lesson-feedback" tabindex="-1" role="status">${escape(httpView.message)}</p>` : ''}
+          ${feedback}
           ${httpState().completed[key] ? `<div class="http-completed">${icon('check')} Exercício validado · +15 XP${httpNextLink(key)}</div>` : ''}
         </section>` : ''}
         <div class="http-workbench">
@@ -73,7 +106,7 @@ function httpPage(key) {
             <form id="http-form">
               <div class="http-address">
                 <label class="filter-field">Método<select id="http-method">${selectOptions(['GET','POST','PATCH','PUT','DELETE','OPTIONS'].map(method => [method,method]),draft.method)}</select></label>
-                <label class="filter-field">Caminho<input id="http-path" type="text" maxlength="1000" value="${escape(draft.path)}" spellcheck="false" autocomplete="off" placeholder="/api/pedidos"></label>
+                <label class="filter-field">Caminho<input id="http-path" type="text" maxlength="1000" value="${escape(draft.path)}" spellcheck="false" autocomplete="off" placeholder="${escape(context?.exercise.probes[0].request.path ?? config.path)}"></label>
                 <button class="button" type="submit">${icon('play')} Enviar</button>
               </div>
               ${httpTabs('request',httpRequestTabs,httpView.requestTab)}
@@ -92,8 +125,9 @@ function httpPage(key) {
 }
 
 function httpNextLink(key) {
-  const next = httpLessons[httpLessons.findIndex(item => item.id === key) + 1];
-  return next ? `<a href="#cliente-http/${next.id}">Próximo exercício ${icon('arrow')}</a>` : '<a href="#cliente-http/livre">Explorar a API</a>';
+  const {lessons,route} = httpProfiles[httpView.profile];
+  const next = lessons[lessons.findIndex(item => item.id === key) + 1];
+  return next ? `<a href="${route}/${next.id}">Próximo exercício ${icon('arrow')}</a>` : `<a href="${route}/livre">Explorar a API</a>`;
 }
 
 function httpTabs(side,tabs,selected) {
@@ -126,8 +160,9 @@ function httpResponseContent(response) {
 
 function httpHistory() {
   const {history} = httpState();
+  const plantao = httpView.profile === 'plantao';
   return `<section class="panel workspace-panel">
-    <div class="http-response-title"><h3>Histórico local</h3><button class="button quiet" type="button" data-http-action="reset-data">Reiniciar dados da API</button></div>
+    <div class="http-response-title"><h3>${plantao ? 'Histórico desta investigação' : 'Histórico local'}</h3>${plantao ? '' : '<button class="button quiet" type="button" data-http-action="reset-data">Reiniciar dados da API</button>'}</div>
     ${history.length ? `<ol class="http-history">${history.map(item => `<li><strong>${escape(item.method)}</strong><code>${escape(item.path)}</code><span>${item.status}</span></li>`).join('')}</ol>`
       : '<p class="note">As últimas requisições aparecem aqui.</p>'}
   </section>`;
@@ -152,7 +187,22 @@ function httpPathFromParams() {
 
 function httpAssess(request,response) {
   const url = new URL(request.path,'https://sprint-web.invalid');
-  const {key} = httpView;
+  const {key,profile} = httpView;
+  if (profile === 'hemoterapia') {
+    switch (key) {
+      case 'estoque':
+        return request.method === 'GET' && url.pathname === '/api/hemoterapia/componentes' &&
+          url.searchParams.get('status') === 'disponivel' && response.status === 200 && response.body.items.every(item => item.status === 'disponivel');
+      case 'rastrear':
+        return request.method === 'GET' && response.status === 200 && response.body.codigo === 'BOL-101' &&
+          response.body.linhaDoTempo?.length > 0 && Boolean(httpHeader(response.headers,'ETag'));
+      case 'ocorrencia':
+        return request.method === 'POST' && response.status === 201 && response.body.status === 'rascunho' && Boolean(httpHeader(response.headers,'Location'));
+      case 'validar':
+        return request.method === 'POST' && response.status === 422 && Boolean(response.body.errors?.codigoComponente?.length);
+      default: return false;
+    }
+  }
   switch (key) {
     case 'listar':
       return request.method === 'GET' && url.pathname === '/api/pedidos' && url.searchParams.get('status') === 'pendente' &&
@@ -173,25 +223,31 @@ function httpAssess(request,response) {
 
 function httpSend() {
   const data = httpState();
-  const {draft,key} = httpView;
+  const {draft,key,profile} = httpView;
+  const config = httpProfiles[profile];
   const request = {method:draft.method,path:draft.path.trim(),headers:draft.headers.filter(row => row.name.trim()),body:draft.body};
-  const response = window.sprintHttp.send(data.database,request);
+  const plantao = profile === 'plantao';
+  const response = plantao ? incidentByVariant.get(key).exercise.respond(key,request) : config.engine.send(data.database,request);
   httpView.response = response;
   httpView.responseTab = 'body';
   httpView.message = '';
   const etag = httpHeader(response.headers,'ETag');
-  if (key === 'etag' && response.status === 200 && request.method === 'GET' && response.body?.id === 101 && etag) {
+  if (plantao) {
+    const captured = incidentObserveHttp(key,request,response);
+    httpView.message = captured ? 'Resposta registrada como evidência para o plantão.'
+      : 'Use as requisições listadas no chamado para registrar a comparação.';
+  } else if (key === 'etag' && response.status === 200 && request.method === 'GET' && response.body?.id === 101 && etag) {
     httpView.observed = etag;
     httpView.responseTab = 'headers';
     httpView.message = 'ETag encontrado. Prepare o PATCH e copie esse valor em If-Match.';
-  } else if (httpById[key]) {
+  } else if (config.byId[key]) {
     let valid = false;
     try { valid = httpAssess(request,response); } catch { /* A rota inválida já aparece na resposta. */ }
     if (valid) {
       if (!data.completed[key]) announce('Exercício HTTP validado. Mais 15 XP.');
       data.completed[key] = true;
       httpView.message = 'O resultado atende ao objetivo do exercício.';
-      if (key === 'criar') httpView.responseTab = 'headers';
+      if (key === 'criar' || key === 'ocorrencia') httpView.responseTab = 'headers';
     } else {
       httpView.message = 'Compare o status e o corpo recebidos com o objetivo do exercício.';
     }
@@ -232,7 +288,7 @@ function bindHttpEvents() {
     httpSend();
   });
   root.addEventListener('input',event => {
-    if (activeRoute.page !== 'cliente-http') return;
+    if (!['cliente-http','cliente-hemoterapia','cliente-plantao'].includes(activeRoute.page)) return;
     const field = event.target;
     const {draft,requestTab} = httpView;
     if (field.id === 'http-path') {
@@ -253,6 +309,14 @@ function bindHttpEvents() {
     if (!button) return;
     const {key,draft,requestTab} = httpView;
     switch (button.dataset.httpAction) {
+      case 'incident-probe': {
+        const probe = incidentByVariant.get(key)?.exercise.probes[Number(button.dataset.probeIndex)];
+        if (httpView.profile !== 'plantao' || !probe) return;
+        const template = probe.request;
+        Object.assign(httpView,{draft:httpDraft(template),requestTab:template.body ? 'body' : template.headers?.length ? 'headers' : 'params',response:null,message:''});
+        render({focus:'#http-path'});
+        break;
+      }
       case 'request-tab':
         httpView.requestTab = button.dataset.tab;
         render({focus:`[data-http-action="request-tab"][data-tab="${button.dataset.tab}"]`});
@@ -286,7 +350,7 @@ function bindHttpEvents() {
       case 'conflict': httpSimulateConflict(); break;
       case 'reset-data':
         if (!window.confirm('Repor os pedidos de exemplo e limpar o histórico do Cliente HTTP?')) return;
-        Object.assign(httpState(),{database:window.sprintHttp.freshState(),history:[]});
+        Object.assign(httpState(),{database:httpProfiles[httpView.profile].engine.freshState(),history:[]});
         httpView.key = null;
         httpSelect(key);
         save();

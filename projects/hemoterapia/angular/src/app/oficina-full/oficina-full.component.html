@@ -1,0 +1,82 @@
+<section aria-labelledby="oficina-full-titulo">
+  <h2 id="oficina-full-titulo">Oficina Full Stack de hemoterapia</h2>
+  <p>Reproduza os chamados HFS-205 a HFS-209 com dados fictícios.</p>
+
+  <div class="oficina-grid">
+    <article aria-labelledby="hfs-205-titulo">
+      <h3 id="hfs-205-titulo">HFS-205 · Paginação do estoque</h3>
+      <button type="button" (click)="carregarEstoque(1)" [disabled]="ocupacaoEstoque()">Carregar estoque paginado</button>
+      @if (estoque(); as pagina) {
+        <ul aria-label="Componentes da página">
+          @for (item of pagina.items; track item.codigo) {
+            <li>{{ item.codigo }} · {{ item.tipo }}</li>
+          } @empty {
+            <li>Nenhum componente nesta página.</li>
+          }
+        </ul>
+        <p role="status">Página {{ pagina.pagina }} de {{ paginas() }} · {{ pagina.total }} componentes</p>
+        <div class="oficina-acoes">
+          <button type="button" [disabled]="ocupacaoEstoque() || pagina.pagina <= 1" (click)="carregarEstoque(pagina.pagina - 1)">Página anterior</button>
+          <button type="button" [disabled]="ocupacaoEstoque() || pagina.pagina >= paginas()" (click)="carregarEstoque(pagina.pagina + 1)">Próxima página</button>
+        </div>
+      }
+      @if (erroEstoque()) { <p role="alert">{{ erroEstoque() }}</p> }
+    </article>
+
+    <article aria-labelledby="hfs-206-titulo">
+      <h3 id="hfs-206-titulo">HFS-206 · Exportação de movimentações</h3>
+      <p>Exporte código, tipo de movimento, instante e unidade.</p>
+      <button type="button" (click)="exportar()" [disabled]="exportando()">Baixar movimentações em CSV</button>
+      <p role="status">{{ mensagemExportacao() }}</p>
+    </article>
+
+    <article aria-labelledby="hfs-207-titulo">
+      <h3 id="hfs-207-titulo">HFS-207 · Resumo por tipo</h3>
+      <button type="button" (click)="carregarResumo()" [disabled]="ocupacaoResumo()">Carregar resumo por tipo</button>
+      @if (linhasResumo(); as linhas) {
+        @if (linhas.length) {
+          <table aria-label="Componentes por tipo e estado operacional">
+            <thead><tr><th scope="col">Tipo</th><th scope="col">Disponíveis</th><th scope="col">Em quarentena</th></tr></thead>
+            <tbody>
+              @for (linha of linhas; track linha.tipo) {
+                <tr><th scope="row">{{ linha.tipo }}</th><td>{{ linha.disponiveis }}</td><td>{{ linha.quarentena }}</td></tr>
+              }
+            </tbody>
+            <tfoot><tr><th scope="row">Total</th><td>{{ totalResumo().disponiveis }}</td><td>{{ totalResumo().quarentena }}</td></tr></tfoot>
+          </table>
+        } @else {
+          <p role="status">Sem componentes para resumir.</p>
+        }
+      }
+      @if (erroResumo()) { <p role="alert">{{ erroResumo() }}</p> }
+    </article>
+
+    <article aria-labelledby="hfs-208-titulo">
+      <h3 id="hfs-208-titulo">HFS-208 · Conferência e suporte</h3>
+      <label for="oficina-conferencia">Código para conferir</label>
+      <div class="oficina-acoes">
+        <input #codigoConferencia id="oficina-conferencia" value="BOL-999" maxlength="20">
+        <button type="button" (click)="conferir(codigoConferencia.value)" [disabled]="ocupacaoConferencia()">Conferir componente</button>
+      </div>
+      <p role="status">
+        {{ conferencia() }}
+        @if (referenciaSuporte(); as codigo) {
+          Referência para o suporte <code>{{ codigo }}</code>
+        }
+      </p>
+    </article>
+
+    <article aria-labelledby="hfs-209-titulo">
+      <h3 id="hfs-209-titulo">HFS-209 · Consulta condicional de etiqueta</h3>
+      <label for="oficina-etiqueta">Código da etiqueta</label>
+      <div class="oficina-acoes">
+        <input #codigoEtiqueta id="oficina-etiqueta" value="BOL-101" maxlength="20">
+        <button type="button" (click)="consultarEtiqueta(codigoEtiqueta.value)" [disabled]="ocupacaoEtiqueta()">Consultar etiqueta</button>
+      </div>
+      <p role="status">{{ mensagemEtiqueta() }}</p>
+      @if (etiqueta(); as item) {
+        <p>{{ item.codigo }} · {{ item.tipo }} · versão {{ item.versao }}</p>
+      }
+    </article>
+  </div>
+</section>

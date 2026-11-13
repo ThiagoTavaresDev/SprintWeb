@@ -43,16 +43,20 @@ const missionGroups = [
   {id:'integracoes', label:'Segurança e integrações', missions:window.integrationMissions}
 ];
 const missions = missionGroups.flatMap(group => group.missions);
-const byId = Object.fromEntries(missions.map(mission => [mission.id, mission]));
+const browserMissions = [...missions,...hemoBrowserMissions];
+const byId = Object.fromEntries(browserMissions.map(mission => [mission.id, mission]));
 const groupByMission = new Map(missionGroups.flatMap(group => group.missions.map(mission => [mission.id,group.id])));
 const stages = ['Investigar', 'Corrigir e testar', 'Entregar'];
 const rewards = [20, 40, 30];
 const reviewDays = [1, 3, 7];
 const navigation = [
-  {title:'Aprendizado', pages:[['inicio','Visão geral','home','Início'],['trilha','Trilha de produto','route','Trilha'],['fullstack','Trilha Full Stack','layers','Full stack'],['tecnologias','Tecnologias','database','Tecnologias'],['cliente-http','Cliente HTTP','terminal','HTTP'],['revisao','Revisão','repeat','Revisão']]},
+  {title:'Aprendizado', pages:[['hemoterapia','Hemoterapia','activity','Hemoterapia'],['plantao','Plantão de incidentes','route','Plantão'],['exercicios-diversos','Exercícios diversos','layers','Diversos'],['cliente-hemoterapia','Cliente HTTP','terminal','HTTP'],['revisao','Revisão','repeat','Revisão']]},
   {title:'Referências', pages:[['ferramentas','Ferramentas','terminal','Guia'],['modelo','Modelo de estudo','book','Modelo'],['como-usar','Como usar','chat','Ajuda']]}
 ];
-const navLabels = Object.fromEntries(navigation.flatMap(group => group.pages).map(([id, label]) => [id, label]));
+const navLabels = {
+  ...Object.fromEntries(navigation.flatMap(group => group.pages).map(([id,label]) => [id,label])),
+  trilha:'Trilha de produto',fullstack:'Trilha Full Stack',tecnologias:'Tecnologias','cliente-http':'Cliente HTTP · Pedidos','cliente-plantao':'Cliente HTTP · Plantão'
+};
 const root = document.querySelector('#app');
 const dateFormat = new Intl.DateTimeFormat('pt-BR', {day:'numeric', month:'short'});
 const storeKey = 'sprint-web-v1';
@@ -70,7 +74,7 @@ const labResults = new Map();
 const running = new Set();
 const pageSize = 12;
 const trailFilters = {query:'', group:'', level:'', status:'', limit:pageSize};
-const catalogs = {trail:{filters:trailFilters,results:trailResults},stack:{filters:stackFilters,results:stackResults},tech:{filters:techFilters,results:techResults}};
+const catalogs = {hemo:{filters:hemoFilters,results:hemoResults},trail:{filters:trailFilters,results:trailResults},stack:{filters:stackFilters,results:stackResults},tech:{filters:techFilters,results:techResults}};
 const reviewFilters = {status:'', limit:pageSize};
 let activeRoute;
 
@@ -87,7 +91,7 @@ function save() {
 }
 
 function stats() {
-  return missions.reduce((total, {id}) => {
+  return browserMissions.reduce((total, {id}) => {
     const {done, reviews} = missionState(id);
     total.completed += Number(done.every(Boolean));
     total.stages += done.filter(Boolean).length;
@@ -104,7 +108,7 @@ function nextStage(id) {
 
 function recommendedMission() {
   const current = Object.hasOwn(byId,state.currentMission) ? byId[state.currentMission] : undefined;
-  if (current && !missionState(current.id).done[2]) return current;
+  if (current && !isHemoMission(current) && !missionState(current.id).done[2]) return current;
   return missions.find(({id}) => missionState(id).done[0] && !missionState(id).done[2])
     ?? missions.find(({id}) => !missionState(id).done[2]);
 }
@@ -114,7 +118,7 @@ function missionHref(id, step = nextStage(id)) {
 }
 
 function reviewSchedule() {
-  return [...missions,...stackMissions].flatMap(mission => {
+  const schedule = [...browserMissions,...allStackMissions].flatMap(mission => {
     const {completedAt, reviews} = activityState(mission);
     if (!completedAt) return [];
     return reviewDays.map((days, index) => {
@@ -122,7 +126,9 @@ function reviewSchedule() {
       due.setDate(due.getDate() + days);
       return {mission, days, index, due, ready:due.getTime() <= Date.now(), done:reviews[index]};
     });
-  }).sort((a,b) => a.due - b.due);
+  });
+  schedule.push(...incidentReviewSchedule().map(review => ({...review,plantao:true})));
+  return schedule.sort((a,b) => a.due - b.due);
 }
 
 function getRoute() {
@@ -139,21 +145,28 @@ function getRoute() {
   }
   if (page === 'tecnologia' && Object.hasOwn(techById,id)) return {page,tech:techById[id]};
   if (page === 'cliente-http') return {page,http:id === 'livre' || Object.hasOwn(httpById,id) ? id : 'listar'};
+  if (page === 'cliente-hemoterapia') return {page,http:id === 'livre' || Object.hasOwn(hemoHttpById,id) ? id : 'estoque'};
+  if (page === 'cliente-plantao') return {page,http:incidentByVariant.has(id) ? id : 'frontend'};
+  if (page === 'plantao' && id === 'telas') return {page,visualCatalogue:true,visualId:Object.hasOwn(visualCases,step) ? step : null};
+  if (page === 'plantao' && id === 'revisao') return {page,incidentReview:Object.hasOwn(incidentCases,step) ? step : 'estoque'};
+  if (page === 'plantao') return {page,incidentId:incidentByVariant.has(id) ? id : null};
   if (page === 'revisao' && (Object.hasOwn(byId,id) || Object.hasOwn(stackById,id)) && /^[1-3]$/.test(step)) {
-    const review = reviewSchedule().find(item => item.mission.id === id && item.index === Number(step) - 1);
+    const review = reviewSchedule().find(item => item.mission?.id === id && item.index === Number(step) - 1);
     if (review) return {page, review};
   }
-  return {page:Object.hasOwn(navLabels, page) ? page : 'inicio'};
+  return {page:Object.hasOwn(navLabels,page) ? page : 'hemoterapia'};
 }
 
-function sidebar(page, ready) {
-  const selected = page === 'missao' ? 'trilha' : page === 'pratica' ? 'fullstack' : page === 'tecnologia' ? 'tecnologias' : page;
+function sidebar(route, ready) {
+  const {page,mission,stack,tech} = route;
+  const selected = page === 'cliente-plantao' ? 'plantao' : isHemoMission(mission ?? stack ?? tech) ? 'hemoterapia'
+    : ['trilha','fullstack','tecnologias','cliente-http','missao','pratica','tecnologia'].includes(page) ? 'exercicios-diversos' : page;
   return `<aside class="sidebar">
-    <a class="brand" href="#inicio" aria-label="Sprint Web, visão geral">
+    <a class="brand" href="#hemoterapia" aria-label="Sprint Web, hemoterapia">
       <img class="brand-mark" src="assets/icon.svg" alt="" width="39" height="39">
       <span><strong>Sprint Web</strong><small>Laboratório de produto</small></span>
     </a>
-    <a class="mobile-brand" href="#inicio" aria-label="Sprint Web, visão geral"><img src="assets/icon.svg" alt="" width="29" height="29"></a>
+    <a class="mobile-brand" href="#hemoterapia" aria-label="Sprint Web, hemoterapia"><img src="assets/icon.svg" alt="" width="29" height="29"></a>
     <nav aria-label="Navegação principal">
       ${navigation.map(({title,pages}) => `<div class="nav-group"><p class="nav-heading">${title}</p>${pages.map(([id,label,name,compact]) =>
         `<a class="nav-link" href="#${id}" aria-label="${label}${id === 'revisao' && ready ? `, ${ready} ${ready === 1 ? 'disponível' : 'disponíveis'}` : ''}"${selected === id ? ' aria-current="page"' : ''}>${icon(name)}<span class="nav-label">${label}</span><span class="nav-compact">${compact}</span>${id === 'revisao' && ready ? `<span class="nav-count">${ready}</span>` : ''}</a>`
@@ -167,7 +180,10 @@ function sidebar(page, ready) {
 }
 
 function topbar(route, xp) {
-  const parent = route.mission ? ['#trilha','Trilha'] : route.stack ? ['#fullstack','Full Stack'] : route.tech ? ['#tecnologias','Tecnologias'] : ['#inicio','Sprint Web'];
+  const parent = route.page === 'cliente-plantao' ? [`#plantao/${route.http}`,'Plantão']
+    : isHemoMission(route.mission ?? route.stack ?? route.tech) ? ['#hemoterapia','Hemoterapia']
+    : route.mission ? ['#trilha','Trilha'] : route.stack ? ['#fullstack','Full Stack'] : route.tech ? ['#tecnologias','Tecnologias']
+    : ['trilha','fullstack','tecnologias','cliente-http'].includes(route.page) ? ['#exercicios-diversos','Diversos'] : ['#hemoterapia','Sprint Web'];
   const label = route.mission?.id || route.stack?.id || route.tech?.id || navLabels[route.page];
   return `<header class="topbar">
     <div class="breadcrumb"><a href="${parent[0]}">${parent[1]}</a>${icon('chevron')}<span>${label}</span></div>
@@ -189,51 +205,6 @@ function missionCard(mission, next) {
     <p>${escape(mission.description)}</p>
     <div class="mission-bottom"><span>${icon('clock')} ${mission.minutes} min</span>${icon('arrow')}</div>
   </a>`;
-}
-
-function dashboard(totals, schedule) {
-  const next = recommendedMission();
-  const fullstack = stackStats();
-  const nextReview = schedule.find(item => !item.done);
-  const ready = schedule.filter(item => item.ready && !item.done).length;
-  const progress = Math.round(totals.stages / (missions.length * 3) * 100);
-  const heroButton = next ? (missionState(next.id).done.some(Boolean) ? 'Continuar missão' : 'Começar missão') : 'Abrir revisões';
-  const firstShown = Math.min(Math.floor((next ? missions.indexOf(next) : missions.length - 1) / 3) * 3, missions.length - 3);
-  return `<section class="hero" aria-labelledby="hero-title">
-    <img class="hero-art" src="assets/hero.webp" alt="" width="1050" height="700">
-    <div class="hero-copy">
-      <div class="hero-label">${icon('terminal')} Laboratório interativo</div>
-      <h1 id="hero-title">Da tarefa<br>ao deploy.</h1>
-      <p>Aprenda desenvolvimento web resolvendo tickets, testando código e entregando como em um time de produto.</p>
-      <div class="hero-actions"><a class="button" href="${next ? missionHref(next.id) : '#revisao'}">${heroButton} ${icon('arrow')}</a>
-      <a class="button hero-secondary" href="#fullstack">Trilha Full Stack ${icon('layers')}</a></div>
-    </div>
-  </section>
-  <section class="section" aria-labelledby="product-trail">
-    <div class="section-heading">
-      <div><h2 id="product-trail">Trilha de produto</h2><p>${missions.length} missões no Portal de Pedidos, em ${missionGroups.length} trilhas temáticas.</p></div>
-      <a class="section-link" href="#trilha">Ver toda a trilha ${icon('arrow')}</a>
-    </div>
-    <div class="card-grid">${missions.slice(firstShown, firstShown + 3).map(mission => missionCard(mission, next)).join('')}</div>
-  </section>
-  <div class="dashboard-bottom">
-    <section class="panel mini-panel">
-      <h3>${icon('trophy')} Progresso na trilha de produto</h3>
-      <div class="progress-meta"><span>${totals.completed} de ${missions.length} missões concluídas</span><strong>${progress}%</strong></div>
-      <progress value="${totals.stages}" max="${missions.length * 3}" aria-label="Etapas validadas"></progress>
-      <p>${totals.stages} de ${missions.length * 3} etapas validadas</p>
-      <a class="section-link" href="#fullstack">Full Stack · ${fullstack.completed} de ${stackMissions.length} missões ${icon('arrow')}</a>
-    </section>
-    <section class="panel mini-panel">
-      <h3>${icon('calendar')} Revisão programada</h3>
-      <p>${ready ? `${ready} ${ready === 1 ? 'revisão disponível' : 'revisões disponíveis'} agora.` : nextReview ? `Próxima revisão em ${dateFormat.format(nextReview.due)}.` : totals.completed ? 'As revisões das suas missões concluídas estão em dia.' : 'Conclua uma missão para agendar revisões em 1, 3 e 7 dias.'}</p>
-      <a class="section-link" href="#revisao">Abrir revisões ${icon('arrow')}</a>
-    </section>
-  </div>
-  <div class="dashboard-bottom">
-    <section class="panel mini-panel"><h3>${icon('database')} Projetos .NET e Angular</h3><p>Trabalhe no código real da API e da interface do Portal de Pedidos.</p><a class="section-link" href="#tecnologias">Explorar tecnologias ${icon('arrow')}</a></section>
-    <section class="panel mini-panel"><h3>${icon('terminal')} Cliente HTTP</h3><p>Monte e envie requisições na API simulada, com cinco exercícios guiados.</p><a class="section-link" href="#cliente-http">Praticar requisições ${icon('arrow')}</a></section>
-  </div>`;
 }
 
 function trail() {
@@ -329,7 +300,7 @@ function missionResources(mission) {
   if (!mission.bridge && !additional.length) return '';
   return `<section class="panel workspace-panel">
     <h3 class="panel-title">${icon('book')} Referências da missão</h3>
-    ${mission.bridge ? `<details class="support-details"><summary>${escape(mission.bridge.title)}</summary><p>${escape(mission.bridge.text)}</p>${mission.bridge.code ? codeBlock(mission.bridge.code,bridgeLanguages[mission.id]) : ''}</details>` : ''}
+    ${mission.bridge ? `<details class="support-details"><summary>${escape(mission.bridge.title)}</summary><p>${escape(mission.bridge.text)}</p>${mission.bridge.code ? codeBlock(mission.bridge.code,mission.bridge.language ?? bridgeLanguages[mission.id]) : ''}</details>` : ''}
     ${additional.length ? `<details class="support-details"><summary>Documentação complementar</summary><ul>${additional.map(({url,label}) => `<li>${link(url,label)}</li>`).join('')}</ul></details>` : ''}
   </section>`;
 }
@@ -442,9 +413,11 @@ function delivery(mission) {
 }
 
 function nextMissionLink(mission) {
-  const after = missions.slice(missions.indexOf(mission) + 1);
+  const hemo = isHemoMission(mission);
+  const list = hemo ? hemoBrowserMissions : missions;
+  const after = list.slice(list.indexOf(mission) + 1);
   const next = after.find(item => !missionState(item.id).done[2]);
-  return next ? stageButton(next.id,nextStage(next.id),'Próxima missão') : '<a class="button" href="#trilha">Voltar à trilha</a>';
+  return next ? stageButton(next.id,nextStage(next.id),'Próxima missão') : `<a class="button" href="${hemo ? '#hemoterapia' : '#trilha'}">Voltar à trilha</a>`;
 }
 
 function jiraStatus(mission) {
@@ -453,7 +426,8 @@ function jiraStatus(mission) {
 
 function missionPage(mission, step) {
   const extended = stackBySource.get(mission.id);
-  return `<a class="route-back" href="#trilha">${icon('back')} Trilha de produto</a>
+  const hemo = isHemoMission(mission);
+  return `<a class="route-back" href="${hemo ? '#hemoterapia' : '#trilha'}">${icon('back')} ${hemo ? 'Hemoterapia' : 'Trilha de produto'}</a>
     <div class="page-heading mission-heading"><p class="kicker">${mission.id} · ${escape(mission.category)}</p><h1>${escape(mission.title)}</h1><p>${escape(mission.description)}</p>
     <div class="skills">${levelBadge(mission)}${mission.skills.map(skill => `<span class="skill">${escape(skill)}</span>`).join('')}</div></div>
     ${extended ? `<div class="stack-extension"><div>${icon('layers')}<span><strong>Prática full stack</strong><small>Leve este chamado do contrato da API até a tela e a entrega ao time.</small></span></div><a class="button secondary" href="${stackHref(extended)}">Abrir ${extended.id} ${icon('arrow')}</a></div>` : ''}
@@ -484,6 +458,7 @@ function reviewResults(schedule) {
   const filtered = schedule.filter(item => !status || status === (item.done ? 'done' : item.ready ? 'ready' : 'future'));
   return `<p class="result-count" role="status">${filtered.length} ${filtered.length === 1 ? 'revisão encontrada' : 'revisões encontradas'}${filtered.length > limit ? ` · ${limit} visíveis` : ''}</p>
     ${filtered.length ? `<div class="review-list">${filtered.slice(0,limit).map(item => {
+      if (item.plantao) return incidentReviewCard(item);
       const {mission,index,days,ready,done,due} = item;
       const text = done ? 'Concluída' : ready ? 'Disponível · +10 XP' : `Abre em ${dateFormat.format(due)}`;
       return `<article class="panel review-item">
@@ -525,9 +500,10 @@ function render({navigationChanged = false, focus} = {}) {
   activeRoute = getRoute();
   const totals = stats();
   const schedule = reviewSchedule();
-  const {page,mission,stack,tech,http,step,review} = activeRoute;
+  const {page,mission,stack,tech,http,step,review,incidentId,incidentReview,visualId} = activeRoute;
   let content;
   switch (page) {
+    case 'exercicios-diversos': content = diverseHome(); break;
     case 'trilha': content = trail(); break;
     case 'missao': content = missionPage(mission,step); break;
     case 'fullstack': content = stackHome(); break;
@@ -535,16 +511,27 @@ function render({navigationChanged = false, focus} = {}) {
     case 'tecnologias': content = techHome(); break;
     case 'tecnologia': content = techPage(tech); break;
     case 'cliente-http': content = httpPage(http); break;
+    case 'cliente-hemoterapia': content = httpPage(http,'hemoterapia'); break;
+    case 'cliente-plantao': content = httpPage(http,'plantao'); break;
+    case 'plantao': {
+      if (visualId) content = visualExercise(visualId);
+      else if (activeRoute.visualCatalogue) content = visualCatalogue();
+      else if (incidentReview) content = incidentReviewPage(incidentReview);
+      else content = incidentId ? incidentCase(incidentId) : incidentHome();
+      break;
+    }
     case 'revisao': content = reviewPage(schedule,review); break;
     case 'ferramentas': content = toolsPage(); break;
     case 'modelo': content = modelPage(); break;
     case 'como-usar': content = howToPage(); break;
-    default: content = dashboard(totals,schedule);
+    default: content = hemoHome();
   }
   const ready = schedule.filter(item => item.ready && !item.done).length;
-  const label = mission?.title || stack?.title || tech?.title || navLabels[page];
-  document.title = page === 'inicio' ? 'Sprint Web — Laboratório de produto' : `${label} — Sprint Web`;
-  root.innerHTML = `<div class="shell">${sidebar(page,ready)}<div class="main-area">${topbar(activeRoute,totals.xp + stackStats().xp + techStats().xp + httpStats().xp)}<main class="content" id="main" tabindex="-1">${content}</main></div></div>`;
+  const label = mission?.title || stack?.title || tech?.title || incidentByVariant.get(incidentId)?.exercise.title ||
+    (activeRoute.visualCatalogue ? 'Chamados com tela' : navLabels[page]);
+  document.title = `${label} — Sprint Web`;
+  const xp = totals.xp + stackStats().xp + techStats().xp + httpStats().xp + httpStats('hemoterapia').xp + incidentXp() + visualXp();
+  root.innerHTML = `<div class="shell">${sidebar(activeRoute,ready)}<div class="main-area">${topbar(activeRoute,xp)}<main class="content" id="main" tabindex="-1">${content}</main></div></div>`;
   updateDemo();
   window.sprintSyntax.mount(root);
   if (navigationChanged) {
@@ -563,6 +550,7 @@ function announce(message) {
 }
 
 function answer(index) {
+  if (activeRoute.incidentReview) return incidentReviewAnswer(activeRoute.incidentReview,index);
   if (activeRoute.tech) return techAnswer(activeRoute.tech,index);
   if (activeRoute.stack) return stackAnswer(index);
   const {mission,step,review} = activeRoute;
@@ -717,11 +705,19 @@ root.addEventListener('click',event => {
     case 'reset': replaceCode(mission,false); break;
     case 'example': replaceCode(mission,true); break;
     case 'trail-more': showMore(trailFilters,'#trail-results',trailResults,'.mission-card'); break;
+    case 'hemo-more': showMore(hemoFilters,'#hemo-results',hemoResults,'.mission-card'); break;
+    case 'hemo-shortcut': {
+      const [,kind,technology] = hemoShortcuts[Number(button.dataset.index)];
+      Object.assign(hemoFilters,{query:'',group:'',level:'',status:'',kind,technology,limit:pageSize});
+      render({focus:'#hemo-kind'});
+      break;
+    }
     case 'review-more': showMore(reviewFilters,'#review-results',() => reviewResults(reviewSchedule()),'.review-item a'); break;
     case 'catalog-clear': {
       const id = button.dataset.catalog;
       Object.assign(catalogs[id].filters,{query:'',group:'',level:'',status:''});
-      if (id === 'trail') trailFilters.limit = pageSize;
+      if (id === 'hemo') Object.assign(hemoFilters,{kind:'',technology:''});
+      if (Object.hasOwn(catalogs[id].filters,'limit')) catalogs[id].filters.limit = pageSize;
       render({focus:`#${id}-query`});
       break;
     }
@@ -789,7 +785,7 @@ function updateCatalog(control) {
   const id = control.dataset.catalog;
   const {filters,results} = catalogs[id];
   filters[control.dataset.filter] = control.value;
-  if (id === 'trail') filters.limit = pageSize;
+  if (Object.hasOwn(filters,'limit')) filters.limit = pageSize;
   document.querySelector(`#${id}-results`).innerHTML = results();
 }
 
@@ -838,4 +834,6 @@ window.addEventListener('hashchange',() => render({navigationChanged:true}));
 bindStackEvents();
 bindTechEvents();
 bindHttpEvents();
+bindIncidentEvents();
+bindVisualEvents();
 render();

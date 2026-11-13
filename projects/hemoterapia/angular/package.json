@@ -1,0 +1,36 @@
+{
+  "name": "sprint-web-hemoterapia-angular",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.18.0 || ^24.0.0"
+  },
+  "scripts": {
+    "start": "ng serve",
+    "start:referencia": "ng serve --configuration reference",
+    "build": "ng build",
+    "build:referencia": "ng build --configuration reference",
+    "verificar": "node --import @angular/compiler --test tests/exercises.test.mjs",
+    "verificar:referencia": "node --import @angular/compiler --test tests/reference.test.mjs",
+    "verificar:oficina": "node --import @angular/compiler --test tests/oficina.initial.test.mjs",
+    "verificar:oficina:referencia": "node --import @angular/compiler --test tests/oficina.reference.test.mjs",
+    "verificar:full": "node --import @angular/compiler --test tests/oficina-full.test.mjs",
+    "verificar:full:referencia": "node --import @angular/compiler --test tests/oficina-full-reference.test.mjs"
+  },
+  "dependencies": {
+    "@angular/common": "~21.2.0",
+    "@angular/compiler": "~21.2.0",
+    "@angular/core": "~21.2.0",
+    "@angular/forms": "~21.2.0",
+    "@angular/platform-browser": "~21.2.0",
+    "rxjs": "~7.8.2",
+    "tslib": "^2.8.1"
+  },
+  "devDependencies": {
+    "@angular/build": "~21.2.0",
+    "@angular/cli": "~21.2.0",
+    "@angular/compiler-cli": "~21.2.0",
+    "typescript": "~5.9.3"
+  }
+}

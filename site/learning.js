@@ -1,12 +1,16 @@
 'use strict';
 
+const hemoProjectMissions = [
+  ...window.hemoTechMissions,...window.hemoNetMoreMissions,...window.hemoAngularMoreMissions,...window.hemoFullMoreMissions
+];
 const missionGuide = {
   ...window.missionGuideFirst,...window.missionGuideSecond,
-  ...Object.fromEntries([...window.techBackend,...window.techFrontend].map(item => [item.id,item]))
+  ...window.hemoCycleGuide,...window.hemoOperationsGuide,...window.hemoFullstackGuide,
+  ...Object.fromEntries([...window.techBackend,...window.techFrontend,...hemoProjectMissions].map(item => [item.id,item]))
 };
 const guideDisclosure = new Map();
 const levelOptions = [
-  ['essencial','Essencial','Pratique uma regra comum dentro de uma camada. Você já deve conseguir ler e editar funções simples em JavaScript.'],
+  ['essencial','Essencial','Pratique uma regra comum dentro de uma camada. Confira os conhecimentos pedidos na missão para a linguagem que você vai usar.'],
   ['intermediario','Intermediário','Combine casos de sucesso e erro, interprete um contrato ou acompanhe dados entre partes do produto.'],
   ['avancado','Avançado','Trabalhe com cenários em que concorrência, segurança ou operação exigem mais cuidado na validação.']
 ];
@@ -44,18 +48,19 @@ function codeBlock(source,language = 'text',variant = '') {
 }
 
 function evidenceCode(mission) {
-  return codeBlock(mission.story.evidence.code,evidenceLanguages[mission.id]);
+  return codeBlock(mission.story.evidence.code,mission.evidenceLanguage ?? (mission.id.startsWith('HFS-') ? 'http' : evidenceLanguages[mission.id]));
 }
 
 function catalogControls(id,filters,groups,labels,availableMissions) {
   const select = (key,title,options) => `<label class="filter-field">${title}<select id="${id}-${key}" data-catalog="${id}" data-filter="${key}">${selectOptions(options,filters[key])}</select></label>`;
   const present = new Set(availableMissions.map(mission => missionGuide[mission.id].level));
   const levels = levelOptions.filter(([value]) => present.has(value)).map(([value,label]) => [value,label]);
-  return `<div class="panel filter-panel catalog-filters" role="search" aria-label="Buscar missões">
+  return `<div class="panel filter-panel catalog-filters${labels.extra ? ' hemo-filters' : ''}" role="search" aria-label="Buscar missões">
     <label class="filter-field search-field">Buscar missão<input type="search" id="${id}-query" data-catalog="${id}" data-filter="query" maxlength="100" placeholder="${escape(labels.placeholder)}" value="${escape(filters.query)}"></label>
     ${select('group',labels.groupTitle,[['',labels.allGroups],...groups])}
     ${select('level','Nível',[['','Todos os níveis'],...levels])}
     ${select('status','Progresso',[['','Todos os estados'],['new','Para começar'],['active','Em andamento'],['done','Concluídas']])}
+    ${(labels.extra ?? []).map(([key,title,options]) => select(key,title,options)).join('')}
   </div>`;
 }
 
@@ -90,13 +95,14 @@ function howToPage() {
   ];
   return `<div class="page-heading"><p class="kicker">Guia da plataforma</p><h1>Como usar o Sprint Web</h1><p>Escolha o tipo de prática, confira a teoria e acompanhe cada etapa da entrega.</p></div>
     <div class="study-grid help-entry">
-      <article class="panel study-card">${tile('route')}<h2>Trilha de produto</h2><p>Pratique um tema do dia a dia em três etapas: investigar, corrigir e testar, entregar.</p><a class="button" href="#trilha">Explorar a trilha de produto ${icon('arrow')}</a></article>
-      <article class="panel study-card">${tile('layers','mint')}<h2>Trilha Full Stack</h2><p>Leve o mesmo ticket do Jira à API e à interface. Valide a integração e registre a entrega com o time.</p><a class="button" href="#fullstack">Explorar a trilha Full Stack ${icon('arrow')}</a></article>
+      <article class="panel study-card">${tile('activity','mint')}<h2>Hemoterapia</h2><p>Escolha um chamado de um sistema fictício de hemoterapia. Filtre por área, nível, tipo de prática ou tecnologia.</p><a class="button" href="#hemoterapia">Explorar hemoterapia ${icon('arrow')}</a></article>
+      <article class="panel study-card">${tile('route','mint')}<h2>Plantão de incidentes</h2><p>Reproduza o erro na tela, compare a captura com a resposta da API e teste sua hipótese. Em Chamados com tela, confira a correção repetindo a operação.</p><a class="button" href="#plantao">Abrir Plantão ${icon('arrow')}</a></article>
+      <article class="panel study-card">${tile('layers')}<h2>Exercícios diversos</h2><p>Retome os chamados, projetos e simulações anteriores do Portal de Pedidos.</p><a class="button" href="#exercicios-diversos">Abrir exercícios diversos ${icon('arrow')}</a></article>
     </div>
     <section class="section" aria-labelledby="help-tech-title"><div class="section-heading"><h2 id="help-tech-title">Pratique com projetos e requisições</h2></div>
       <div class="study-grid help-entry">
-        <article class="panel study-card">${tile('database')}<h3>Projetos .NET e Angular</h3><p>Em Tecnologias, filtre pela stack, baixe o ZIP e siga o README. Edite o arquivo do chamado, rode a verificação no seu terminal e registre o que observou.</p><a class="button" href="#tecnologias">Ver missões de tecnologia ${icon('arrow')}</a></article>
-        <article class="panel study-card">${tile('terminal','mint')}<h3>Cliente HTTP</h3><p>Escolha um exercício, monte a requisição, envie e compare status, cabeçalhos e corpo. Use Exploração livre para repetir o fluxo com outros dados.</p><a class="button" href="#cliente-http">Abrir Cliente HTTP ${icon('arrow')}</a></article>
+        <article class="panel study-card">${tile('database')}<h3>Projetos .NET e Angular</h3><p>Em Hemoterapia, escolha um projeto de backend, frontend ou Full Stack. Baixe o ZIP e siga o README. Nas missões Full Stack, registre a verificação de cada camada e use a evidência dos testes na entrega.</p><a class="button" href="#hemoterapia">Ver catálogo de hemoterapia ${icon('arrow')}</a></article>
+        <article class="panel study-card">${tile('terminal','mint')}<h3>Cliente HTTP</h3><p>Monte requisições de estoque, rastreabilidade e ocorrências fictícias. Compare status, cabeçalhos e corpo.</p><a class="button" href="#cliente-hemoterapia">Abrir Cliente HTTP ${icon('arrow')}</a></article>
       </div>
     </section>
     <section class="section" aria-labelledby="help-steps-title"><div class="section-heading"><h2 id="help-steps-title">Da primeira tentativa à revisão</h2></div>
@@ -104,8 +110,8 @@ function howToPage() {
     </section>
     <section class="section" aria-labelledby="help-level-title"><div class="section-heading"><h2 id="help-level-title">O que significam os níveis</h2></div>
       <div class="card-grid">${levelOptions.map(([value,label,description]) => {
-        const example = [...missions,...stackMissions].find(item => missionGuide[item.id].level === value);
-        const href = example && (Object.hasOwn(stackById,example.id) ? stackHref(example) : missionHref(example.id));
+        const example = hemoMissions.find(item => missionGuide[item.id].level === value);
+        const href = example && hemoHref(example);
         return `<article class="panel study-card"><h3><span class="level-badge level-${value}">${label}</span></h3><p>${description}</p>${example ? `<a href="${href}">Exemplo · ${escape(example.title)} ${icon('arrow')}</a>` : ''}</article>`;
       }).join('')}</div>
     </section>

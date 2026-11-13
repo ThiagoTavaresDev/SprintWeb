@@ -1,5 +1,7 @@
 # Sprint Web · Portal de Pedidos
 
+Para as missões da trilha principal, abra o [guia dos projetos de hemoterapia](hemoterapia/README.md).
+
 Os projetos deste pacote usam o mesmo contrato de pedidos do Cliente HTTP no Sprint Web. A API e a interface executam de verdade na sua máquina e usam dados fictícios.
 
 ## Preparar o ambiente

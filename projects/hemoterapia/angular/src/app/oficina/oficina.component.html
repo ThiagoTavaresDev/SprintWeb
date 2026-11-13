@@ -1,0 +1,77 @@
+<section aria-labelledby="oficina-titulo">
+  <h2 id="oficina-titulo">Oficina Angular</h2>
+  <div class="subgrid">
+    <article aria-labelledby="oficina-estoque">
+      <h3 id="oficina-estoque">Buscar no estoque</h3>
+      <div class="actions">
+        <button type="button" (click)="carregar()">Carregar inventário</button>
+        <button type="button" (click)="carregar(true)">Simular falha transitória</button>
+      </div>
+      @if (leitura() === 'carregando') {
+        <p class="status" role="status">Consultando inventário…</p>
+      } @else if (leitura() === 'erro') {
+        <p class="status" role="alert">Consulta falhou após {{ tentativas() }} tentativa(s).</p>
+      } @else if (leitura() === 'pronto') {
+        <label class="pesquisa">
+          Buscar por código do componente
+          <input #busca type="search" [value]="termo()" (input)="termo.set(busca.value)" placeholder="Ex.: BOL-101">
+        </label>
+        <p class="status" role="status">{{ visiveis().length }} item(ns) · {{ tentativas() }} tentativa(s)</p>
+        <ul class="itens">
+          @for (item of visiveis(); track item.codigo) {
+            <li>{{ item.codigo }} <small>{{ item.tipo }} · {{ item.status }}</small></li>
+          } @empty {
+            <li>Nenhum componente para este código.</li>
+          }
+        </ul>
+      }
+    </article>
+
+    <article aria-labelledby="oficina-detalhe">
+      <h3 id="oficina-detalhe">Alternar componente</h3>
+      <div class="actions" role="group" aria-label="Consultar detalhe na oficina">
+        <button type="button" (click)="abrir('BOL-101')">BOL-101</button>
+        <button type="button" (click)="abrir('BOL-102')">BOL-102</button>
+        <button type="button" (click)="abrir('BOL-999')">BOL-999</button>
+      </div>
+      @if (detalhe(); as estado) {
+        <div class="status">
+          @switch (estado.tipo) {
+            @case ('carregando') { <p role="status">Consultando {{ estado.codigo }}…</p> }
+            @case ('pronto') { <p role="status">{{ estado.componente.codigo }} · {{ estado.componente.status }}</p> }
+            @case ('erro') { <p role="alert">{{ estado.mensagem }}</p> }
+          }
+        </div>
+      }
+    </article>
+  </div>
+
+  <h3>Testar envio de rascunho</h3>
+  <p>Use BOL-999 para reproduzir o erro por campo e BOL-101 para testar um envio válido.</p>
+  <form [formGroup]="formulario" (ngSubmit)="enviar()" [attr.aria-busy]="enviando()">
+    <label for="oficina-codigo">Código do componente</label>
+    <input #oficinaCodigo id="oficina-codigo" formControlName="codigoComponente"
+      aria-describedby="oficina-erro-codigo" [attr.aria-invalid]="erros().codigoComponente ? 'true' : null">
+    <span id="oficina-erro-codigo" class="erro">{{ erros().codigoComponente?.join(' ') }}</span>
+    <label for="oficina-descricao">Descrição fictícia</label>
+    <textarea #oficinaDescricao id="oficina-descricao" formControlName="descricao" rows="3"
+      aria-describedby="oficina-erro-descricao" [attr.aria-invalid]="erros().descricao ? 'true' : null"></textarea>
+    <span id="oficina-erro-descricao" class="erro">{{ erros().descricao?.join(' ') }}</span>
+    <button type="submit" [disabled]="formulario.invalid">Enviar rascunho de teste</button>
+  </form>
+  @if (envio(); as estado) {
+    <div class="status">
+      @switch (estado.tipo) {
+        @case ('enviando') { <p role="status">Enviando rascunho…</p> }
+        @case ('salvo') { <p role="status">Rascunho de teste #{{ estado.ocorrencia.id }} salvo.</p> }
+        @case ('erro') {
+          @if (erros().codigoComponente || erros().descricao) {
+            <p role="alert">Confira os campos marcados.</p>
+          } @else {
+            <p role="alert">Falha ao enviar. O texto do rascunho foi preservado.</p>
+          }
+        }
+      }
+    </div>
+  }
+</section>

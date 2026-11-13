@@ -326,6 +326,29 @@ progress::-moz-progress-bar { background: #815cf3; border-radius: 50px; }
 .tech-file { display: flex; align-items: flex-start; gap: 7px; padding: 7px 8px; border-radius: 7px; background: #f4efff; color: #5b3c9d; }
 .tech-file code, .tech-verify { overflow-wrap: anywhere; }
 .tech-verify { white-space: pre-line; }
+.tech-layer-check { display: flex; align-items: center; gap: 7px; margin-top: 12px; font-size: 13px; font-weight: 650; }
+.tech-layer-check input { width: 17px; height: 17px; margin: 0; accent-color: var(--primary); }
+.tech-delivery { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 7px 12px; margin: 0 0 14px; font-size: 13px; }
+.tech-delivery dt { font-weight: 750; }
+.tech-delivery dd { margin: 0; color: var(--sub); }
+.hemo-hero { display: grid; grid-template-columns: minmax(0,1.55fr) minmax(0,1fr); gap: 25px; align-items: center; padding: 27px 30px; border-radius: 16px; background: radial-gradient(ellipse at 100% 15%,#275754,#19343c 61%); color: white; }
+.hemo-hero .hero-label { color: #c9eae4; }
+.hemo-hero h1 { font-size: clamp(32px,4.6vw,50px); max-width: 570px; }
+.hemo-hero h1 + p { max-width: 510px; margin-top: 10px; color: #e1efed; font-size: 14px; }
+.hemo-hero .actions .button:first-child { background: #a6e7d6; color: #173932; }
+.hemo-hero .actions .button:first-child:hover { background: #ccf4e8; }
+.hemo-overview { padding: 15px; border: 1px solid #bcdfd750; border-radius: 11px; background: #e9f9f011; min-width: 0; }
+.hemo-overview-title { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.hemo-overview progress { margin-top: 10px; }
+.hemo-overview dl { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; margin: 12px 0 0; }
+.hemo-overview dl > div { padding: 6px 7px; border-radius: 6px; background: #d8f6eb15; }
+.hemo-overview dt { color: #d4e9e3; font-size: 10px; }
+.hemo-overview dd { margin: 0; font-size: 18px; font-weight: 800; }
+.hemo-orientation { margin: 0 0 12px; color: var(--sub); font-size: 13px; }
+.hemo-orientation p + p { margin-top: 4px; }
+.hemo-shortcuts { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+.hemo-filters { grid-template-columns: minmax(0,1.5fr) repeat(2,minmax(0,1fr)); }
+.mission-card .hemo-card-kicker { margin: 0; font-size: 10px; }
 .http-layout { display: grid; grid-template-columns: minmax(180px,.75fr) minmax(0,3.25fr); gap: 13px; align-items: start; }
 .http-layout > *, .http-workbench > * { min-width: 0; }
 .http-collection h2 { font-size: 18px; }
@@ -402,6 +425,8 @@ progress::-moz-progress-bar { background: #815cf3; border-radius: 50px; }
   .hero-copy { width: 91%; }
   .stack-intro { grid-template-columns: 1fr; gap: 16px; padding: 17px; }
   .tech-hero { grid-template-columns: 1fr; padding: 17px; gap: 13px; }
+  .hemo-hero { grid-template-columns: 1fr; padding: 18px; gap: 13px; }
+  .hemo-filters { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .http-layout { grid-template-columns: 1fr; }
   .http-layout > aside { display: contents; }
   .http-layout .http-main { order: 1; }

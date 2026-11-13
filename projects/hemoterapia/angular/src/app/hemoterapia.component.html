@@ -1,0 +1,73 @@
+<main>
+  <header>
+    <p class="tag">Sprint Web · Hemoterapia</p>
+    <h1>Estoque e rastreabilidade</h1>
+    <p>Ambiente de treinamento com componentes e unidades fictícios.</p>
+  </header>
+
+  <div class="workspace">
+    <section aria-labelledby="estoque-titulo">
+      <h2 id="estoque-titulo">Estoque</h2>
+      <div class="actions" role="group" aria-label="Filtrar por status operacional">
+        <button type="button" (click)="carregar('')" [attr.aria-pressed]="filtro() === ''">Todos</button>
+        <button type="button" (click)="carregar('disponivel')" [attr.aria-pressed]="filtro() === 'disponivel'">Disponível</button>
+        <button type="button" (click)="carregar('quarentena')" [attr.aria-pressed]="filtro() === 'quarentena'">Quarentena</button>
+      </div>
+      @if (consultando()) {
+        <p role="status">Consultando estoque…</p>
+      } @else if (erroEstoque()) {
+        <p role="alert">{{ erroEstoque() }}</p>
+      } @else {
+        <ul class="itens">
+          @for (item of itens(); track item.codigo) {
+            <li>
+              <span><strong>{{ item.codigo }}</strong><small>{{ item.tipo }} · {{ item.status }}</small></span>
+              <button type="button" (click)="abrir(item.codigo)" [attr.aria-label]="'Rastrear ' + item.codigo">Rastrear</button>
+            </li>
+          } @empty {
+            <li>Nenhum componente para este filtro.</li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section aria-labelledby="detalhe-titulo">
+      <h2 id="detalhe-titulo">Linha do tempo</h2>
+      @if (consultandoDetalhe()) {
+        <p role="status">Consultando eventos…</p>
+      } @else if (erroDetalhe()) {
+        <p role="alert">{{ erroDetalhe() }}</p>
+      } @else if (detalhe(); as dados) {
+        <p><strong>{{ dados.componente.codigo }}</strong> <small>ETag {{ dados.etag ?? 'indisponível' }}</small></p>
+        <ol class="eventos">
+          @for (movimento of dados.componente.linhaDoTempo; track $index) {
+            <li>{{ movimento.tipo }} · {{ movimento.unidade }} <small>{{ movimento.instante }}</small></li>
+          } @empty {
+            <li>Nenhum evento retornado.</li>
+          }
+        </ol>
+      } @else {
+        <p>Abra um componente para consultar os eventos registrados.</p>
+      }
+    </section>
+  </div>
+
+  <section aria-labelledby="ocorrencia-titulo">
+    <h2 id="ocorrencia-titulo">Rascunho interno de ocorrência</h2>
+    <p>Use somente identificadores fictícios. O registro fica na base local de treinamento.</p>
+    <form [formGroup]="formulario" (ngSubmit)="registrar()">
+      <label for="codigo">Código do componente</label>
+      <input id="codigo" formControlName="codigoComponente" placeholder="BOL-101"
+        [attr.aria-invalid]="erros().codigoComponente ? 'true' : null" aria-describedby="erro-codigo">
+      <span id="erro-codigo" class="erro">{{ erros().codigoComponente?.join(' ') }}</span>
+      <label for="descricao">Descrição do que ocorreu</label>
+      <textarea id="descricao" rows="3" formControlName="descricao"
+        [attr.aria-invalid]="erros().descricao ? 'true' : null" aria-describedby="erro-descricao"></textarea>
+      <span id="erro-descricao" class="erro">{{ erros().descricao?.join(' ') }}</span>
+      <button type="submit" [disabled]="formulario.invalid || salvando()">{{ salvando() ? 'Salvando…' : 'Salvar rascunho' }}</button>
+    </form>
+    <p role="status">{{ mensagem() }}</p>
+  </section>
+  <app-oficina-angular />
+  <app-oficina-full />
+</main>

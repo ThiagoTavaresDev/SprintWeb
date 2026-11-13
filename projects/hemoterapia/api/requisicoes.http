@@ -1,0 +1,74 @@
+@url = http://127.0.0.1:5085/api/hemoterapia
+
+### Filtrar o estoque operacional
+GET {{url}}/componentes?status=disponivel
+Accept: application/json
+
+### Consultar a linha do tempo e conferir o cabeçalho ETag
+GET {{url}}/componentes/BOL-101
+Accept: application/json
+
+### Reproduzir um 422 com erros por campo
+POST {{url}}/ocorrencias
+Content-Type: application/json
+
+{
+  "codigoComponente": "BOL-999",
+  "descricao": " "
+}
+
+### Criar um rascunho interno e conferir o cabeçalho Location
+POST {{url}}/ocorrencias
+Content-Type: application/json
+
+{
+  "codigoComponente": "BOL-101",
+  "descricao": "Evento de teste registrado pela equipe de qualidade."
+}
+
+### HNT-304 · Consultar as opções para o seletor
+GET {{url}}/oficina-net/opcoes
+
+### HNT-305 · Conferir recebimentos presentes e ausentes
+GET {{url}}/oficina-net/recebimentos
+
+### HNT-306 · Repetir a mesma importação e comparar 201 com 200
+POST {{url}}/oficina-net/importacoes
+Content-Type: application/json
+
+{
+  "codigoExterno": "IMPORT-EXEMPLO-1",
+  "codigoComponente": "BOL-101"
+}
+
+### HNT-307 · Consultar a auditoria em um intervalo com fuso explícito
+GET {{url}}/oficina-net/auditoria?de=2026-10-01T06:00:00-03:00&ate=2026-10-01T11:00:00Z
+
+### HNT-308 · Criar um dossiê de teste com o primeiro evento
+POST {{url}}/oficina-net/dossies
+Content-Type: application/json
+
+{
+  "codigo": "DOSSIE-EXEMPLO-1",
+  "nota": "Conferência fictícia registrada em homologação."
+}
+
+### HFS-205 · Consultar a segunda página do estoque
+GET {{url}}/oficina-full/estoque?pagina=2&tamanho=2
+
+### HFS-206 · Conferir Content-Disposition e o conteúdo do CSV
+GET {{url}}/oficina-full/movimentos.csv
+Accept: text/csv
+
+### HFS-207 · Consultar os totais por tipo e status operacional
+GET {{url}}/oficina-full/resumo
+
+### HFS-208 · Comparar a referência no corpo e em X-Correlation-ID
+GET {{url}}/oficina-full/conferencia/BOL-999
+
+### HFS-209 · Ler a etiqueta e copiar o ETag da resposta
+GET {{url}}/oficina-full/etiquetas/BOL-101
+
+### HFS-209 · Repetir a consulta usando o ETag recebido
+GET {{url}}/oficina-full/etiquetas/BOL-101
+If-None-Match: "BOL-101-1"

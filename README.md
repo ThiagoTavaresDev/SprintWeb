@@ -1,6 +1,12 @@
 # Sprint Web
 
-Laboratório de desenvolvimento web com missões de produto, desafios full stack, projetos em C# e Angular e um Cliente HTTP com dados simulados.
+Laboratório de desenvolvimento web com uma trilha principal de hemoterapia. Os chamados fictícios cobrem coleta, estoque, rastreabilidade, fluxo transfusional e hemovigilância. Os exercícios do Portal de Pedidos ficam em **Exercícios diversos**.
+
+A trilha usa dados sintéticos e regras de software para treinamento. A API simulada e os projetos locais de hemoterapia não são sistemas para uso clínico.
+
+Abra **Plantão de incidentes** para investigar paginação, cache de etiquetas, validação de rascunhos e referências de erro para suporte. Cada chamado tem duas ocorrências com o mesmo sintoma. Use o Cliente HTTP, valide a correção e reproduza uma regressão em um PR. Cada chamado tem revisão três dias após a primeira conclusão e um atalho para a prática local em .NET ou Angular.
+
+Reproduza o sintoma na tela de homologação antes de abrir a captura da interface. Em **Chamados com tela**, há dez exercícios em que você executa a operação original, escolhe a correção e repete a mesma sequência na versão corrigida.
 
 ## Preparar e abrir a plataforma
 
@@ -19,7 +25,7 @@ Na hospedagem estática, configure `python scripts/build.py` como comando de bui
 
 ## Praticar com .NET e Angular
 
-Em `projects/` estão a API ASP.NET Core no .NET 10 com EF Core e SQLite, o frontend Angular com TypeScript e uma coleção para importar no Postman. O [guia dos projetos](projects/README.md) explica como instalar as dependências, iniciar os servidores locais e validar os exercícios.
+O [projeto de hemoterapia](projects/hemoterapia/README.md) tem uma API ASP.NET Core no .NET 10 com EF Core e SQLite e uma interface Angular com TypeScript. As 21 missões de projeto local indicam arquivos, critérios e comandos de teste. Cinco delas percorrem as duas camadas e a entrega do chamado. O [Portal de Pedidos](projects/README.md) também está disponível no mesmo ZIP.
 
 ## Enviar ao seu Git
 
